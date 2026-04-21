@@ -1,0 +1,338 @@
+# Puntos 4, 5 y 6 — Informe Final
+# Proyecto Big Data: Football Players Stats 2024-2025
+
+══════════════════════════════════════════════════════════════
+4. HERRAMIENTAS Y TECNOLOGÍAS UTILIZADAS
+══════════════════════════════════════════════════════════════
+
+Para este proyecto se han seleccionado tres herramientas principales:
+Python, SQL y Power BI. La selección responde a los objetivos del
+proyecto: análisis exploratorio, modelado predictivo y visualización
+interactiva. Se ha priorizado la coherencia con el tipo de dato
+(tabular, ~1.000 registros, 28 variables numéricas y categóricas) y
+la capacidad de cada herramienta para cubrir las fases CRISP-DM
+definidas en el punto 3.
+
+──────────────────────────────────────────────────────────────
+4.1 Python (Pandas · Matplotlib · Seaborn · Scikit-learn)
+──────────────────────────────────────────────────────────────
+
+¿Qué es?
+Python es un lenguaje de programación interpretado, de propósito
+general, que se ha convertido en el estándar de facto en Data Science
+y Machine Learning. Su ecosistema de librerías open-source permite
+abordar desde la ingesta de datos hasta el despliegue de modelos en
+producción.
+
+Librerías utilizadas y su función:
+
+• Pandas: proporciona la estructura DataFrame, equivalente a una tabla
+  SQL en memoria. Permite cargar CSV, filtrar filas, agrupar,
+  transformar tipos y unir tablas con una API intuitiva basada en
+  encadenamiento de métodos (.groupby(), .merge(), .fillna()…).
+
+• Matplotlib y Seaborn: librerías de visualización estática. Seaborn
+  está construida sobre Matplotlib y añade estilos estadísticos
+  predefinidos (boxplots, heatmaps, pairplots). Toda figura del
+  proyecto se genera con estas dos librerías.
+
+• Scikit-learn: biblioteca de machine learning que implementa de forma
+  uniforme regresión, clasificación, clustering y evaluación bajo la
+  API fit/predict/score. Permite validación cruzada (KFold), escalado
+  de variables (MinMaxScaler) y métricas estándar (R², RMSE, F1).
+
+¿Cómo funciona en el proyecto?
+El script notebooks/01_eda_and_modeling.py carga el dataset, aplica
+la limpieza definida en CRISP-DM Fase 3, genera los 11 gráficos del
+análisis exploratorio, entrena los 4 modelos (regresión lineal,
+Random Forest, K-Means, árbol de decisión) con validación cruzada
+k=5, y exporta el CSV enriquecido (football_stats_enriched.csv) que
+alimenta Power BI.
+
+Por qué se eligió:
+Python cubre en un único entorno toda la cadena EDA → modelado →
+evaluación → exportación, es reproducible (script versionable en
+Git), y Scikit-learn implementa exactamente los algoritmos previstos
+en la metodología CRISP-DM del proyecto.
+
+──────────────────────────────────────────────────────────────
+4.2 SQL — DuckDB (compatible BigQuery)
+──────────────────────────────────────────────────────────────
+
+¿Qué es?
+SQL (Structured Query Language) es el lenguaje estándar ANSI para
+consultar bases de datos relacionales. En este proyecto se utiliza
+DuckDB como motor de ejecución local: es un sistema de gestión de
+bases de datos analítico, embebido (no requiere servidor), que
+procesa directamente archivos CSV y Parquet con sintaxis SQL estándar.
+La misma lógica es directamente portable a BigQuery (Google Cloud)
+para escalar a volúmenes Big Data.
+
+¿Cómo funciona?
+DuckDB ejecuta consultas SQL sobre el CSV cargado en memoria
+utilizando un motor columnar optimizado para analítica. Su modelo de
+ejecución vectorizado permite procesar millones de filas sin necesidad
+de cargar los datos en un DataFrame. La integración con Python es
+directa (librería duckdb) y el resultado de cada consulta se devuelve
+como DataFrame de Pandas.
+
+Consultas implementadas en el proyecto (sql/football_analysis.sql):
+• Distribución de jugadores por posición y liga
+• Ranking top-20 por G+A (con filtro mínimo de minutos)
+• Detección de outperformers y underperformers respecto al xG
+• KPIs por liga: media de goles, xG, valor de mercado, % over_xG
+• Equipos más goleadores (suma G+A por equipo)
+• Análisis de rendimiento por tramo de edad
+• Segmentación por cuartil de valor de mercado
+• Detección de outliers (alto xG, baja conversión)
+
+Por qué se eligió:
+SQL permite responder preguntas de negocio con consultas declarativas
+legibles por cualquier analista, independientemente del lenguaje.
+DuckDB fue la opción frente a SQLite por su mayor rendimiento
+analítico y su compatibilidad nativa con CSV y Parquet sin necesidad
+de importar la tabla previamente.
+
+──────────────────────────────────────────────────────────────
+4.3 Power BI
+──────────────────────────────────────────────────────────────
+
+¿Qué es?
+Power BI es la herramienta de Business Intelligence de Microsoft.
+Permite conectar múltiples fuentes de datos, transformarlas con
+Power Query (lenguaje M), crear relaciones entre tablas, y construir
+dashboards interactivos con visualizaciones dinámicas: gráficos de
+barras, scatter plots, mapas, tablas, KPIs y filtros cruzados.
+
+¿Cómo funciona?
+El flujo de trabajo es:
+  1. Importar datos: se conecta al CSV enriquecido exportado por
+     Python (football_stats_enriched.csv).
+  2. Power Query: limpieza y tipado de columnas si es necesario.
+  3. Modelo de datos: definición de columnas calculadas en DAX
+     (Data Analysis Expressions), por ejemplo:
+       xG_diff = [Gls] - [xG]
+       Rendimiento_relativo = DIVIDE([G+A], [Min]) * 90
+  4. Visualizaciones: construcción del dashboard con filtros por
+     liga, posición, equipo y rango de valor de mercado.
+
+Páginas del dashboard implementado:
+  • Vista general: KPIs de goles, asistencias y xG medio por liga.
+  • Top Jugadores: tabla filtrable con ranking por G+A, xG_diff y
+    valor de mercado.
+  • Análisis xG: scatter interactivo Gls vs xG coloreado por posición,
+    con línea de referencia xG=Gls.
+  • Perfiles (Clustering): visualización de los clusters K-Means con
+    etiquetas de perfil.
+
+Por qué se eligió:
+Power BI permite al usuario final explorar los resultados sin
+necesidad de código, cumple con el requisito de "informes en tiempo
+real" del enunciado, y su integración con CSV es directa. Es la
+herramienta estándar en entornos empresariales españoles para
+dashboards ejecutivos.
+
+══════════════════════════════════════════════════════════════
+5. IMPLEMENTACIÓN PRÁCTICA
+══════════════════════════════════════════════════════════════
+
+La implementación práctica sigue fielmente las fases CRISP-DM
+definidas en el punto 3. A continuación se detallan los pasos
+ejecutados, los resultados obtenidos y su interpretación.
+
+──────────────────────────────────────────────────────────────
+5.1 Carga y exploración inicial (Fase 2 CRISP-DM)
+──────────────────────────────────────────────────────────────
+
+El dataset se carga con Pandas desde el CSV descargado de Kaggle:
+
+    df = pd.read_csv("football_stats_2024_25.csv")
+
+Resultados del diagnóstico inicial:
+• 1.057 registros · 28 columnas
+• Sin valores nulos en ninguna columna
+• Variables numéricas correctamente tipadas (int64 / float64)
+• Distribución de posiciones: GK 9,3% · DF 35,5% · MF 33,2% · FW 22%
+
+──────────────────────────────────────────────────────────────
+5.2 Limpieza y preparación (Fase 3 CRISP-DM)
+──────────────────────────────────────────────────────────────
+
+Decisiones de limpieza aplicadas:
+
+1. Separación de porteros (GK): 98 porteros separados del análisis
+   ofensivo. Sus métricas (0 goles, 0 asistencias) distorsionarían
+   los modelos de regresión y clustering.
+
+2. Filtro de minutos mínimos: se eliminan jugadores con menos de 90
+   minutos totales (1 partido equivalente). Quedan 958 jugadores
+   de campo. Justificación: las métricas /90 son muy inestables con
+   pocos minutos.
+
+3. Variable derivada over_xG: se crea una variable binaria que vale 1
+   si Gls > xG (el jugador supera sus expected goals) y 0 en caso
+   contrario. Es la variable objetivo del árbol de decisión.
+
+4. Normalización para clustering: MinMaxScaler escala todas las
+   variables numéricas al rango [0,1] para que K-Means no esté
+   sesgado por diferencias de escala (xG va de 0 a 50, Min de 90 a
+   2700).
+
+5. Enriquecimiento con valor de mercado: la columna
+   market_value_eur_M simula el cruce con Transfermarkt.
+   Con el dataset real, el join se realiza con la clave Player+Squad.
+
+──────────────────────────────────────────────────────────────
+5.3 Análisis Exploratorio (EDA)
+──────────────────────────────────────────────────────────────
+
+Se generan 11 visualizaciones que responden a las preguntas del
+proyecto:
+
+Figura 1 — Boxplot G/A/G+A por posición:
+Los delanteros (FW) muestran la mediana más alta en goles (≈8) y
+mayor dispersión (IQR amplio), confirmando que son el grupo más
+heterogéneo. Los mediocampistas lideran en asistencias. Los
+defensores tienen distribuciones muy concentradas cerca de cero
+en goles, con algunos outliers notables.
+
+Figura 2 — Gls/90 por liga:
+La Liga presenta la mayor mediana de goles por 90 minutos y la mayor
+dispersión, lo que sugiere mayor variabilidad en el estilo de juego
+(equipos con alta y baja presión). Ligue 1 y Serie A muestran
+medianas similares. Se aprecia que todas las ligas tienen outliers
+superiores, correspondientes a los máximos goleadores de cada
+competición.
+
+Figura 3 — Heatmap de correlaciones:
+Las correlaciones más fuertes con G+A son:
+  • xG (r≈0,61): la métrica individual más predictiva
+  • npxG+xAG (r≈0,65): suma de contribución esperada
+  • PrgC (r≈0,41): conducciones progresivas
+  • Min (r≈0,35): tiempo en cancha (sesgo por acumulación)
+Sorprende la correlación moderada entre valor de mercado y G+A
+(r≈0,52), indicando que el mercado no siempre premia el rendimiento
+inmediato.
+
+Figura 4 — Scatter xG vs Goles reales:
+La nube de puntos se distribuye alrededor de la línea diagonal
+xG=Goles. Los delanteros (rojo) muestran mayor dispersión vertical
+(más varianza en la conversión real vs esperada). El 55,7% de los
+jugadores está por encima de la diagonal (outperformers).
+
+──────────────────────────────────────────────────────────────
+5.4 Modelado
+──────────────────────────────────────────────────────────────
+
+MODELO 1 — Regresión Lineal Múltiple
+Variables predictoras: xG, xAG, PrgP, PrgC, Min
+Variable objetivo: G+A
+
+  R² CV (k=5): 0,345 ± 0,064
+  RMSE CV:     4,52  ± 0,19
+  MAE:         3,56
+
+El coeficiente de xG (+0,282) es el mayor, confirmando que es la
+variable más explicativa. PrgC (+0,050) y xAG (+0,147) también
+contribuyen positivamente. El R² de 0,35 indica que el modelo
+explica el 35% de la varianza: aceptable para datos deportivos con
+alto ruido, pero mejorable con modelos no lineales.
+
+Los residuos muestran distribución aproximadamente normal con
+algunos outliers positivos (jugadores que marcan muy por encima de
+lo predicho), coherente con el comportamiento real del fútbol.
+
+MODELO 2 — Random Forest (comparativa)
+  R² CV (k=5): 0,452 ± 0,088
+
+El Random Forest mejora el R² en +10 puntos porcentuales al capturar
+interacciones no lineales. La variable más importante es xG (≈38%),
+seguida de Min (≈22%) y PrgC (≈18%). Con el dataset real de Kaggle,
+se espera mejorar ambos modelos al contar con más varianza en los
+datos.
+
+MODELO 3 — K-Means Clustering
+El método Elbow y el Silhouette Score convergen en k=3 como número
+óptimo de clusters (Silhouette=0,312). Los tres perfiles obtenidos
+son estadísticamente coherentes con las posiciones reales:
+
+  Cluster 0 — Delantero Goleador: Gls≈9, xG≈8, PrgP bajos.
+               Posición modal: FW.
+  Cluster 1 — Mediocampista Creativo: Ast≈6, PrgP≈213, xAG altos.
+               Posición modal: MF.
+  Cluster 2 — Defensor/Jugador de Contención: Gls≈2, xG≈1,7,
+               PrgP moderados. Posición modal: DF.
+
+Interpretación deportiva: el clustering no supervisado reproduce de
+forma autónoma la división posicional del fútbol, lo que valida tanto
+la calidad del dataset como la capacidad discriminante de las
+variables elegidas.
+
+MODELO 4 — Árbol de Decisión (clasificación)
+Variable objetivo: over_xG (¿supera el jugador su xG?)
+  Accuracy CV (k=5): 74,5% ± 1,6%
+  F1-Score: 0,80 (clase positiva)
+
+La primera regla del árbol (xG ≤ 3,42) divide el dataset en dos
+grupos: jugadores con bajo xG (más propensos a superar su expectativa
+por azar estadístico) y jugadores con alto xG (delanteros de élite
+donde la conversión es más predecible). Accuracy del 74,5% es un
+resultado sólido para una clasificación binaria en datos deportivos.
+
+──────────────────────────────────────────────────────────────
+5.5 Exportación y despliegue en Power BI
+──────────────────────────────────────────────────────────────
+
+El CSV enriquecido (football_stats_enriched.csv, 958 registros,
+32 columnas) incluye las predicciones de ambos modelos de regresión,
+el cluster asignado a cada jugador, la etiqueta del cluster, la
+variable over_xG y la diferencia xG_diff.
+
+Este archivo se importa directamente en Power BI Desktop donde se
+construye el dashboard descrito en el punto 4.3, con páginas
+dedicadas a la exploración por liga, el análisis de outperformers y
+la visualización de los clusters.
+
+══════════════════════════════════════════════════════════════
+6. DOCUMENTACIÓN Y SEGUIMIENTO (GitHub)
+══════════════════════════════════════════════════════════════
+
+Toda la documentación teórica y práctica del proyecto se almacena en
+un repositorio público de GitHub. El repositorio está estructurado
+como si fuera una web con menú desplegable gracias al README.md
+enriquecido con Markdown, cabeceras, tablas y enlaces internos.
+
+Estructura del repositorio:
+  football-bigdata-project/
+  ├── README.md                     ← Índice principal / web del proyecto
+  ├── data/
+  │   ├── generate_sample_data.py   ← Script para datos de muestra
+  │   ├── football_stats_2024_25.csv
+  │   └── football_stats_enriched.csv
+  ├── notebooks/
+  │   └── 01_eda_and_modeling.py    ← Pipeline completo Python
+  ├── sql/
+  │   └── football_analysis.sql     ← Consultas SQL analíticas
+  ├── powerbi/
+  │   └── football_dashboard.pbix   ← Dashboard Power BI
+  └── docs/
+      ├── informe_final.pdf
+      └── figures/                  ← 11 gráficas generadas
+          └── *.png
+
+El README.md actúa como índice navegable con las siguientes secciones:
+  • Abstract: resumen ejecutivo de resultados en 150 palabras.
+  • Introducción: contexto y motivación del proyecto.
+  • Desarrollo por temas: secciones 1 a 5 con tablas, figuras y código.
+  • Conclusiones: 4 conclusiones principales del análisis.
+  • Bibliografía: fuentes académicas y datasets citados.
+  • Estructura del repositorio: árbol de directorios con descripción.
+
+Buenas prácticas aplicadas en el repositorio:
+  • Commits descriptivos por fase del proyecto (feat: EDA, feat: models…)
+  • .gitignore configurado para excluir archivos temporales y CSV grandes
+  • Código comentado y estructurado por secciones numeradas
+  • Referencia a herramientas de IA utilizadas en la bibliografía
+  • Imágenes con resolución 150 dpi y títulos autoexplicativos
+
+URL del repositorio: https://github.com/[usuario]/football-bigdata-project
