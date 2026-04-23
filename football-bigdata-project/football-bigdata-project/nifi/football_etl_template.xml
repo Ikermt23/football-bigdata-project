@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  ============================================================
+  Apache NiFi — Template ETL Football Stats 2024-2025
+  Proyecto Final Big Data e IA — España 2024-2025
+  ============================================================
+  Flujo: CSV local → Validación → Enriquecimiento → HDFS
+  ============================================================
+  Importar en NiFi: Upload Template → Process Group → Start
+  ============================================================
+-->
+<template encoding-version="1.0">
+    <description>Pipeline ETL Football Players Stats 2024-2025: ingesta CSV, validación de columnas, transformación de tipos, enriquecimiento y carga en HDFS.</description>
+    <name>Football_ETL_Pipeline</name>
+    <snippet>
+        <processGroups>
+            <id>football-etl-pg-001</id>
+            <parentGroupId>root</parentGroupId>
+            <position>
+                <x>100.0</x>
+                <y>100.0</y>
+            </position>
+            <name>Football Stats ETL</name>
+            <comments>Pipeline completo de ingesta y transformación del dataset Football Players Stats 2024-2025</comments>
+
+            <!-- ── PROCESADOR 1: Leer CSV desde disco ──────────────── -->
+            <processors>
+                <id>proc-getfile-001</id>
+                <parentGroupId>football-etl-pg-001</parentGroupId>
+                <position><x>100.0</x><y>200.0</y></position>
+                <name>GetFile — Leer CSV</name>
+                <type>org.apache.nifi.processors.standard.GetFile</type>
+                <comments>Lee el archivo football_stats_2024_25.csv del directorio de entrada</comments>
+                <config>
+                    <properties>
+                        <entry><key>Input Directory</key><value>./data</value></entry>
+                        <entry><key>File Filter</key><value>football_stats_2024_25\.csv</value></entry>
+                        <entry><key>Keep Source File</key><value>true</value></entry>
+                        <entry><key>Recurse Subdirectories</key><value>false</value></entry>
+                    </properties>
+                    <schedulingPeriod>10 sec</schedulingPeriod>
+                    <schedulingStrategy>TIMER_DRIVEN</schedulingStrategy>
+                </config>
+            </processors>
+
+            <!-- ── PROCESADOR 2: Actualizar atributos de metadatos ─── -->
+            <processors>
+                <id>proc-updateattr-001</id>
+                <parentGroupId>football-etl-pg-001</parentGroupId>
+                <position><x>350.0</x><y>200.0</y></position>
+                <name>UpdateAttribute — Metadatos</name>
+                <type>org.apache.nifi.processors.attributes.UpdateAttribute</type>
+                <comments>Añade metadatos al FlowFile: fuente, temporada y timestamp de ingesta</comments>
+                <config>
+                    <properties>
+                        <entry><key>data_source</key><value>FBref.com / Kaggle</value></entry>
+                        <entry><key>temporada</key><value>2024-2025</value></entry>
+                        <entry><key>ingestion_timestamp</key><value>${now():format('yyyy-MM-dd HH:mm:ss')}</value></entry>
+                        <entry><key>proyecto</key><value>Football Big Data Proyecto Final</value></entry>
+                        <entry><key>mime.type</key><value>text/csv</value></entry>
+                    </properties>
+                </config>
+            </processors>
+
+            <!-- ── PROCESADOR 3: Validar columnas requeridas ──────── -->
+            <processors>
+                <id>proc-validatecsv-001</id>
+                <parentGroupId>football-etl-pg-001</parentGroupId>
+                <position><x>600.0</x><y>200.0</y></position>
+                <name>ValidateRecord — Esquema CSV</name>
+                <type>org.apache.nifi.processors.standard.ValidateRecord</type>
+                <comments>Valida que el CSV tenga las 28 columnas esperadas con tipos correctos</comments>
+                <config>
+                    <properties>
+                        <entry><key>Record Reader</key><value>CSVReader</value></entry>
+                        <entry><key>Record Writer</key><value>CSVRecordSetWriter</value></entry>
+                        <entry><key>Schema Access Strategy</key><value>Use Schema Name Property</value></entry>
+                        <entry><key>Schema Name</key><value>football_stats_schema</value></entry>
+                        <entry><key>Invalid Record Route</key><value>to-invalid</value></entry>
+                    </properties>
+                </config>
+            </processors>
+
+            <!-- ── PROCESADOR 4: Transformar y limpiar datos ─────── -->
+            <processors>
+                <id>proc-jolt-001</id>
+                <parentGroupId>football-etl-pg-001</parentGroupId>
+                <position><x>850.0</x><y>200.0</y></position>
+                <name>JoltTransformRecord — Limpieza</name>
+                <type>org.apache.nifi.processors.standard.JoltTransformRecord</type>
+                <comments>Filtra GK (porteros) y jugadores con Min menor de 90. Añade campo over_xG</comments>
+                <config>
+                    <properties>
+                        <entry><key>Record Reader</key><value>CSVReader</value></entry>
+                        <entry><key>Record Writer</key><value>CSVRecordSetWriter</value></entry>
+                        <entry><key>Jolt Specification</key><value>
+[{
+  "operation": "shift",
+  "spec": {
+    "*": {
+      "@Pos": "Pos",
+      "@Player": "Player",
+      "@Gls": "Gls",
+      "@xG": "xG",
+      "@Min": "Min",
+      "@G+A": "G+A"
+    }
+  }
+}]
+                        </value></entry>
+                    </properties>
+                </config>
+            </processors>
+
+            <!-- ── PROCESADOR 5: Cargar en HDFS ──────────────────── -->
+            <processors>
+                <id>proc-puthdfs-001</id>
+                <parentGroupId>football-etl-pg-001</parentGroupId>
+                <position><x>1100.0</x><y>200.0</y></position>
+                <name>PutHDFS — Almacenar en HDFS</name>
+                <type>org.apache.nifi.processors.hadoop.PutHDFS</type>
+                <comments>Escribe el CSV procesado en HDFS en el directorio /user/football/raw/</comments>
+                <config>
+                    <properties>
+                        <entry><key>Hadoop Configuration Resources</key><value>/etc/hadoop/conf/core-site.xml,/etc/hadoop/conf/hdfs-site.xml</value></entry>
+                        <entry><key>Directory</key><value>/user/football/raw</value></entry>
+                        <entry><key>Conflict Resolution Strategy</key><value>replace</value></entry>
+                        <entry><key>Block Size</key><value>134217728</value></entry>
+                        <entry><key>Replication</key><value>2</value></entry>
+                        <entry><key>Compression codec</key><value>NONE</value></entry>
+                    </properties>
+                </config>
+            </processors>
+
+            <!-- ── PROCESADOR 6: Log de éxito ─────────────────────── -->
+            <processors>
+                <id>proc-log-001</id>
+                <parentGroupId>football-etl-pg-001</parentGroupId>
+                <position><x>1350.0</x><y>200.0</y></position>
+                <name>LogAttribute — Registro OK</name>
+                <type>org.apache.nifi.processors.standard.LogAttribute</type>
+                <comments>Registra en el log de NiFi cada archivo cargado exitosamente en HDFS</comments>
+                <config>
+                    <properties>
+                        <entry><key>Log Level</key><value>info</value></entry>
+                        <entry><key>Log Payload</key><value>false</value></entry>
+                        <entry><key>Attributes to Log</key><value>data_source,temporada,ingestion_timestamp,filename</value></entry>
+                    </properties>
+                </config>
+            </processors>
+
+            <!-- ── CONEXIONES ENTRE PROCESADORES ─────────────────── -->
+            <connections>
+                <id>conn-001</id>
+                <sourceId>proc-getfile-001</sourceId>
+                <destinationId>proc-updateattr-001</destinationId>
+                <selectedRelationships><relationship>success</relationship></selectedRelationships>
+                <name>GetFile → UpdateAttribute</name>
+            </connections>
+            <connections>
+                <id>conn-002</id>
+                <sourceId>proc-updateattr-001</sourceId>
+                <destinationId>proc-validatecsv-001</destinationId>
+                <selectedRelationships><relationship>success</relationship></selectedRelationships>
+                <name>UpdateAttribute → ValidateRecord</name>
+            </connections>
+            <connections>
+                <id>conn-003</id>
+                <sourceId>proc-validatecsv-001</sourceId>
+                <destinationId>proc-jolt-001</destinationId>
+                <selectedRelationships><relationship>valid</relationship></selectedRelationships>
+                <name>ValidateRecord (válidos) → JoltTransform</name>
+            </connections>
+            <connections>
+                <id>conn-004</id>
+                <sourceId>proc-jolt-001</sourceId>
+                <destinationId>proc-puthdfs-001</destinationId>
+                <selectedRelationships><relationship>success</relationship></selectedRelationships>
+                <name>JoltTransform → PutHDFS</name>
+            </connections>
+            <connections>
+                <id>conn-005</id>
+                <sourceId>proc-puthdfs-001</sourceId>
+                <destinationId>proc-log-001</destinationId>
+                <selectedRelationships><relationship>success</relationship></selectedRelationships>
+                <name>PutHDFS → LogAttribute</name>
+            </connections>
+        </processGroups>
+    </snippet>
+</template>

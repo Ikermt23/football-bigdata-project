@@ -1,0 +1,68 @@
+# ============================================================
+# Clúster Hadoop HDFS — 1 NameNode + 2 DataNodes
+# Proyecto Final Big Data — Football Stats 2024-2025
+# ============================================================
+# Uso:
+#   docker-compose up -d
+#   docker-compose down
+# ============================================================
+
+version: "3.8"
+
+services:
+
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: hadoop-namenode
+    restart: always
+    ports:
+      - "9870:9870"   # Web UI HDFS NameNode
+      - "9000:9000"   # Puerto RPC para clientes
+    volumes:
+      - namenode_data:/hadoop/dfs/name
+      - ./data_upload:/data_upload   # carpeta local para subir CSVs
+    environment:
+      - CLUSTER_NAME=football-cluster
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+      - CORE_CONF_hadoop_http_staticuser_user=root
+      - HDFS_CONF_dfs_replication=2
+      - HDFS_CONF_dfs_permissions_enabled=false
+    networks:
+      - hadoop_net
+
+  datanode1:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: hadoop-datanode1
+    restart: always
+    volumes:
+      - datanode1_data:/hadoop/dfs/data
+    environment:
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+      - HDFS_CONF_dfs_replication=2
+    depends_on:
+      - namenode
+    networks:
+      - hadoop_net
+
+  datanode2:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: hadoop-datanode2
+    restart: always
+    volumes:
+      - datanode2_data:/hadoop/dfs/data
+    environment:
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+      - HDFS_CONF_dfs_replication=2
+    depends_on:
+      - namenode
+    networks:
+      - hadoop_net
+
+volumes:
+  namenode_data:
+  datanode1_data:
+  datanode2_data:
+
+networks:
+  hadoop_net:
+    driver: bridge
