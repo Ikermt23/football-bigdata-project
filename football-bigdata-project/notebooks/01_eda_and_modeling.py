@@ -33,15 +33,19 @@ from sklearn.metrics import (mean_squared_error, mean_absolute_error,
                               r2_score, classification_report,
                               confusion_matrix, silhouette_score)
 import warnings, os
+from pathlib import Path
 
 warnings.filterwarnings("ignore")
 sns.set_theme(style="whitegrid", palette="muted", font_scale=1.1)
 
-OUTPUT_DIR = "/home/claude/football-bigdata-project/docs/figures"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+# Rutas relativas al script — funcionan en Windows, Mac y Linux
+BASE_DIR   = Path(__file__).resolve().parent.parent  # raíz del proyecto
+DATA_DIR   = BASE_DIR / "data"
+OUTPUT_DIR = BASE_DIR / "docs" / "figures"
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 def save(fig, name):
-    path = f"{OUTPUT_DIR}/{name}.png"
+    path = OUTPUT_DIR / f"{name}.png"
     fig.savefig(path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"  [OK] guardado → {path}")
@@ -52,7 +56,7 @@ print("\n" + "="*60)
 print("FASE 2 — Comprensión de los datos")
 print("="*60)
 
-df = pd.read_csv("/home/claude/football-bigdata-project/data/football_stats_2024_25.csv")
+df = pd.read_csv(DATA_DIR / "football_stats_2024_25.csv")
 print(f"\nRegistros cargados : {len(df)}")
 print(f"Columnas           : {len(df.columns)}")
 print(f"\nTipos de datos:\n{df.dtypes.to_string()}")
@@ -335,7 +339,7 @@ df_export["GA_pred_lr"] = lr.predict(df_out[features]).round(2)
 df_export["GA_pred_rf"] = rf.predict(df_out[features]).round(2)
 df_export["xG_diff"]    = (df_out["Gls"] - df_out["xG"]).round(2)
 
-out_path = "/home/claude/football-bigdata-project/data/football_stats_enriched.csv"
+out_path = DATA_DIR / "football_stats_enriched.csv"
 df_export.to_csv(out_path, index=False)
 print(f"  Exportado → {out_path}")
 print(f"  Registros: {len(df_export)} | Columnas: {len(df_export.columns)}")
@@ -351,7 +355,7 @@ summary_liga = df_export.groupby("Comp").agg(
     pct_over_xG=("over_xG","mean"),
 ).round(2)
 summary_liga["pct_over_xG"] = (summary_liga["pct_over_xG"] * 100).round(1)
-summary_liga.to_csv("/home/claude/football-bigdata-project/data/summary_by_league.csv")
+summary_liga.to_csv(DATA_DIR / "summary_by_league.csv")
 print(f"\nResumen por liga:\n{summary_liga.to_string()}")
 
 print("\n" + "="*60)

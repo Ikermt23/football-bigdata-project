@@ -7,6 +7,7 @@ Usado para desarrollo y pruebas sin necesidad de descargar el dataset original.
 
 import pandas as pd
 import numpy as np
+from pathlib import Path
 
 np.random.seed(42)
 
@@ -139,6 +140,8 @@ for comp, squads in LEAGUES.items():
             player_idx += 1
 
 df = pd.DataFrame(rows)
-df.to_csv("/home/claude/football-bigdata-project/data/football_stats_2024_25.csv", index=False)
+OUT = Path(__file__).resolve().parent / "football_stats_2024_25.csv"
+df.to_csv(OUT, index=False)
 print(f"Dataset generado: {len(df)} jugadores, {len(df.columns)} columnas")
+print(f"Guardado en: {OUT}")
 print(df.head(3).to_string())
